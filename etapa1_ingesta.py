@@ -133,7 +133,7 @@ def ejecutar_ingesta():
         try:
             # Si origen==destino (por fallback), evitamos truncar el archivo destino.
             if os.path.abspath(ruta_origen) == os.path.abspath(ruta_destino):
-                print(f"  ⚪ Origen y destino iguales; se omite copia: {nombre_archivo}")
+                print(f" Origen y destino iguales; se omite copia: {nombre_archivo}")
                 log.append(f"  Archivo: {nombre_archivo} → (sin copia, origen==destino)")
             else:
                 with open(ruta_origen, "rb") as fsrc, open(ruta_destino, "wb") as fdst:
@@ -145,7 +145,7 @@ def ejecutar_ingesta():
                 print(f"  ✅ Archivo copiado: {nombre_archivo}")
                 log.append(f"  Archivo: {nombre_archivo} → copiado correctamente")
         except Exception as e:
-            print(f"  ❌ Error al copiar: {e}")
+            print(f" Error al copiar: {e}")
             log.append(f"  ERROR al copiar: {e}")
             archivos_error += 1
             continue
@@ -154,8 +154,8 @@ def ejecutar_ingesta():
         # Contar registros del archivo
         n_registros = contar_registros(ruta_destino)
         if n_registros >= 0:
-            print(f"  📊 Registros encontrados: {n_registros}")
-            log.append(f"  Registros encontrados: {n_registros}")
+            print(f" Registros encontrados: {n_registros}")
+            log.append(f" Registros encontrados: {n_registros}")
             total_registros += n_registros
         else:
             log.append("  Registros: no se pudo contar")
