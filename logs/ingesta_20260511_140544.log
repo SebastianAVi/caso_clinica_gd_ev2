@@ -1,0 +1,27 @@
+=======================================================
+  INGESTA DE DATOS - Clínica MediSalud S.A.
+=======================================================
+  Inicio : 2026-05-11 14:05:44
+=======================================================
+
+Área: LABORATORIO
+  Archivo: laboratorio.csv → (sin copia, origen==destino)
+  Registros encontrados: 0
+
+Área: URGENCIAS
+  Archivo: urgencias.json → (sin copia, origen==destino)
+  Registros: no se pudo contar
+
+Área: FARMACIA
+  Archivo: farmacia.xml → (sin copia, origen==destino)
+  Registros: no se pudo contar
+
+=======================================================
+  RESUMEN
+=======================================================
+  Archivos procesados : 3
+  Archivos con error  : 0
+  Total de registros  : 0
+  Duración            : 0 segundos
+  Fin                 : 2026-05-11 14:05:44
+=======================================================
