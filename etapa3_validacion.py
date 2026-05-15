@@ -180,6 +180,11 @@ def validar_urgencias(log):
         print(msg); log.append(msg)
         return 0, 0, 0
 
+    if os.path.getsize(entrada) == 0:
+        msg = f"  ⚠️  JSON vacío en {entrada}: no hay registros para validar"
+        print(msg); log.append(msg)
+        return 0, 0, 0
+
     try:
         with open(entrada, encoding="utf-8") as f:
             datos = json.load(f)
@@ -240,6 +245,11 @@ def validar_farmacia(log):
 
     if not entrada:
         msg = f"  ❌ Archivo no encontrado ni en data/clean ni en limpieza: farmacia.xml"
+        print(msg); log.append(msg)
+        return 0, 0, 0
+
+    if os.path.getsize(entrada) == 0:
+        msg = f"  ⚠️  XML vacío en {entrada}: no hay registros para validar"
         print(msg); log.append(msg)
         return 0, 0, 0
 

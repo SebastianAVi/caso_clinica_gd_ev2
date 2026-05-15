@@ -1,0 +1,122 @@
+[
+  {
+    "id_atencion": "A001",
+    "id_paciente": "P001",
+    "fecha_ingreso": "2026-01-03",
+    "estado": "alta"
+  },
+  {
+    "id_atencion": "A002",
+    "id_paciente": "P002",
+    "fecha_ingreso": "2026-01-05",
+    "estado": "hospitalizado"
+  },
+  {
+    "id_atencion": "A003",
+    "id_paciente": "P003",
+    "fecha_ingreso": "2026-01-08",
+    "estado": "observacion"
+  },
+  {
+    "id_atencion": "A004",
+    "id_paciente": "P004",
+    "fecha_ingreso": "2026-01-10",
+    "estado": "uci"
+  },
+  {
+    "id_atencion": "A005",
+    "id_paciente": "P005",
+    "fecha_ingreso": "2026-01-12",
+    "estado": "fallecido"
+  },
+  {
+    "id_atencion": "A006",
+    "id_paciente": "P006",
+    "fecha_ingreso": "2026-01-15",
+    "estado": "alta"
+  },
+  {
+    "id_atencion": "A007",
+    "id_paciente": "P007",
+    "fecha_ingreso": "2026-01-18",
+    "estado": "hospitalizado"
+  },
+  {
+    "id_atencion": "A008",
+    "id_paciente": "P008",
+    "fecha_ingreso": "2026-02-01",
+    "estado": "observacion"
+  },
+  {
+    "id_atencion": "A009",
+    "id_paciente": "P009",
+    "fecha_ingreso": "2026-02-03",
+    "estado": "uci"
+  },
+  {
+    "id_atencion": "A010",
+    "id_paciente": "P010",
+    "fecha_ingreso": "2026-02-05",
+    "estado": "alta"
+  },
+  {
+    "id_atencion": "A011",
+    "id_paciente": "P011",
+    "fecha_ingreso": "2026-02-08",
+    "estado": "hospitalizado"
+  },
+  {
+    "id_atencion": "A012",
+    "id_paciente": "P012",
+    "fecha_ingreso": "2026-02-10",
+    "estado": "observacion"
+  },
+  {
+    "id_atencion": "A013",
+    "id_paciente": "P013",
+    "fecha_ingreso": "2026-02-12",
+    "estado": "fallecido"
+  },
+  {
+    "id_atencion": "A014",
+    "id_paciente": "P014",
+    "fecha_ingreso": "2026-02-14",
+    "estado": "uci"
+  },
+  {
+    "id_atencion": "A015",
+    "id_paciente": "P015",
+    "fecha_ingreso": "2026-02-16",
+    "estado": "alta"
+  },
+  {
+    "id_atencion": "A016",
+    "id_paciente": "P016",
+    "fecha_ingreso": "2026-02-18",
+    "estado": "hospitalizado"
+  },
+  {
+    "id_atencion": "A017",
+    "id_paciente": "P017",
+    "fecha_ingreso": "2026-02-20",
+    "estado": "observacion"
+  },
+  {
+    "id_atencion": "A018",
+    "id_paciente": "P018",
+    "fecha_ingreso": "2026-02-22",
+    "estado": "uci"
+  },
+  {
+    "id_atencion": "A019",
+    "id_paciente": "P019",
+    "fecha_ingreso": "2026-02-24",
+    "estado": "alta"
+  },
+  {
+    "id_atencion": "A020",
+    "id_paciente": "P020",
+    "fecha_ingreso": "2026-02-26",
+    "estado": "hospitalizado"
+  }
+]
