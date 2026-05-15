@@ -17,7 +17,7 @@ Desarrollar un flujo de procesamiento de datos desde fuentes heterogéneas (CSV,
 | Semana | Etapa                    | Estado     | Archivo Principal              |
 |--------|--------------------------|------------|--------------------------------|
 | 1      | Ingesta de Datos         | ✅ Completa | `etapa1_ingesta.py`            |
-| 2      | Limpieza y Transformación| 🔄 En progreso | `etapa2_limpieza.py`       |
+| 2      | Limpieza y Transformación| ✅ Completa | `etapa2_limpieza.py`       |
 | 3      | Validación               | 🔄 En progreso | `etapa3_validacion.py`     |
 | 4      | Carga a Base de Datos    | 🔄 En progreso | `etapa4_carga_bd.py`       |
 
