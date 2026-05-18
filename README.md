@@ -64,6 +64,16 @@ Copia los archivos desde data/raw_origen/ a data/raw/
 Cuenta registros de cada fuente
 Genera un log detallado con fecha, duración y cantidad de registros
 
+## 🧪 Etapa 4: Carga a Base de Datos
+
+Después de limpiar y validar los datos, ejecute:
+
+```bash
+python etapa4_carga_bd.py
+```
+
+El script crea tablas en la base de datos SQLite (`data/clinica.db`), carga los registros válidos de `data/clean`, evita duplicados y genera un log en `logs/`.
+
 
 📊 Datos de Ejemplo Incluidos
 
