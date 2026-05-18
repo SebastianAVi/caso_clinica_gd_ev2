@@ -1,37 +1,51 @@
-import os
+"""
+================================================================
+  ETAPA 3: VALIDACIÓN - Clínica MediSalud S.A.
+================================================================
+Lee los archivos limpios desde data/clean/, aplica reglas de
+negocio y separa los registros en:
+  - Válidos   → data/validados/
+  - Rechazados → data/rechazados/  (con motivo del rechazo)
+
+Reglas aplicadas:
+  LABORATORIO : id_examen, id_paciente obligatorios | fecha válida
+                y no futura | resultado número positivo
+  URGENCIAS   : id_atencion, id_paciente obligatorios | fecha válida
+                y no futura | estado en lista permitida
+  FARMACIA    : id_despacho, id_paciente, medicamento obligatorios
+                | fecha válida y no futura | cantidad > 0
+================================================================
+"""
+
 import csv
 import json
+import os
 import xml.etree.ElementTree as ET
-from datetime import datetime, date
+from datetime import date, datetime
 
-# -------------------------------------------------------
-# CONFIGURACIÓN DE RUTAS
-# -------------------------------------------------------
-CARPETA_PROCESSED  = "data/clean"
-CARPETA_LIMPIEZA   = "limpieza"
-CARPETA_LOGS       = "logs"
+from config import (
+    CARPETA_CLEAN,
+    CARPETA_LOGS,
+    ESTADOS_URGENCIA_VALIDOS,
+)
 
-# Valores permitidos para el estado en urgencias
-ESTADOS_URGENCIA_VALIDOS = {"alta", "hospitalizado", "uci", "observacion", "fallecido"}
-
-# Fecha de hoy para validar que no haya fechas futuras
-HOY = date.today()
+CARPETA_VALIDADOS  = "data/validados"
+CARPETA_RECHAZADOS = "data/rechazados"
+HOY                = date.today()
 
 
 # -------------------------------------------------------
-# FUNCIONES DE APOYO
+# FUNCIONES DE VALIDACIÓN REUTILIZABLES
 # -------------------------------------------------------
 
-def crear_carpetas():
-    os.makedirs(CARPETA_LOGS, exist_ok=True)
+def campo_requerido(valor, nombre: str):
+    if not valor or str(valor).strip() == "":
+        return False, f"Campo obligatorio vacío: {nombre}"
+    return True, ""
 
 
-def es_fecha_valida(fecha_str):
-    """
-    Verifica que la fecha tenga formato YYYY-MM-DD y no sea futura.
-    Retorna (True/False, mensaje_error)
-    """
-    if not fecha_str or fecha_str.strip() == "":
+def es_fecha_valida(fecha_str: str):
+    if not (fecha_str or "").strip():
         return False, "Fecha vacía"
     try:
         fecha = datetime.strptime(fecha_str.strip(), "%Y-%m-%d").date()
@@ -43,63 +57,27 @@ def es_fecha_valida(fecha_str):
 
 
 def es_numero_positivo(valor_str):
-    """
-    Verifica que el valor sea numérico y mayor que 0.
-    Retorna (True/False, mensaje_error)
-    """
     try:
-        num = float(str(valor_str).strip())
-        if num <= 0:
-            return False, f"Valor debe ser mayor a 0, se recibió: {valor_str}"
-        return True, ""
+        if float(str(valor_str).strip()) > 0:
+            return True, ""
+        return False, f"Valor debe ser mayor a 0, se recibió: {valor_str}"
     except (ValueError, TypeError):
         return False, f"Valor no numérico: {valor_str}"
 
 
-def campo_requerido(valor, nombre_campo):
-    """
-    Verifica que un campo obligatorio no esté vacío.
-    Retorna (True/False, mensaje_error)
-    """
-    if not valor or str(valor).strip() == "":
-        return False, f"Campo obligatorio vacío: {nombre_campo}"
-    return True, ""
+# -------------------------------------------------------
+# FUNCIONES AUXILIARES
+# -------------------------------------------------------
+
+def crear_carpetas() -> None:
+    for carpeta in [CARPETA_VALIDADOS, CARPETA_RECHAZADOS, CARPETA_LOGS]:
+        os.makedirs(carpeta, exist_ok=True)
 
 
-def buscar_ruta_entrada(nombre_archivo, log):
-    """
-    Busca el archivo de entrada en los lugares esperados.
-    Primero revisa data/clean y luego intenta usar la carpeta limpieza.
-    """
-    candidatos = [
-        os.path.join(CARPETA_PROCESSED, nombre_archivo),
-        os.path.join(CARPETA_LIMPIEZA, nombre_archivo),
-        os.path.join("data", "processed", nombre_archivo),
-        os.path.join("data", "raw", nombre_archivo),
-    ]
-
-    for ruta in candidatos:
-        if os.path.exists(ruta):
-            if ruta.startswith(CARPETA_LIMPIEZA):
-                msg = f"  ℹ️  Archivo encontrado en carpeta limpieza: {ruta}"
-                print(msg); log.append(msg)
-            return ruta
-
-    for root, _, files in os.walk(CARPETA_LIMPIEZA):
-        if nombre_archivo in files:
-            ruta = os.path.join(root, nombre_archivo)
-            msg = f"  ℹ️  Archivo encontrado en limpieza (recursivo): {ruta}"
-            print(msg); log.append(msg)
-            return ruta
-
-    return None
-
-
-def escribir_log(log_entries, nombre_log):
+def escribir_log(log_entries: list, nombre_log: str) -> None:
     ruta_log = os.path.join(CARPETA_LOGS, nombre_log)
     with open(ruta_log, "w", encoding="utf-8") as f:
-        for linea in log_entries:
-            f.write(linea + "\n")
+        f.write("\n".join(log_entries) + "\n")
     print(f"\n📋 Log guardado en: {ruta_log}")
 
 
@@ -107,235 +85,204 @@ def escribir_log(log_entries, nombre_log):
 # VALIDACIÓN POR ÁREA
 # -------------------------------------------------------
 
-def validar_laboratorio(log):
-    """
-    Valida cada registro del archivo laboratorio.csv.
-    Separa en válidos y rechazados.
-    """
-    entrada   = buscar_ruta_entrada("laboratorio.csv", log)
+def validar_laboratorio(log: list):
+    entrada  = os.path.join(CARPETA_CLEAN, "laboratorio.csv")
+    sal_val  = os.path.join(CARPETA_VALIDADOS,  "laboratorio_valido.csv")
+    sal_rech = os.path.join(CARPETA_RECHAZADOS, "laboratorio_rechazado.csv")
 
     print("\n🔬 Validando: LABORATORIO")
     log.append("\n--- LABORATORIO ---")
 
-    if not entrada:
-        msg = f"  ❌ Archivo no encontrado ni en data/clean ni en limpieza: laboratorio.csv"
+    if not os.path.exists(entrada):
+        msg = f"  ❌ Archivo no encontrado: {entrada}"
         print(msg); log.append(msg)
         return 0, 0, 0
 
-    validos    = 0
-    rechazados = 0
+    validos    = []
+    rechazados = []
 
     with open(entrada, encoding="utf-8") as f:
         lector = csv.DictReader(f)
-
+        campos = lector.fieldnames or []
         for fila in lector:
             errores = []
-
-            # Regla 1: Campos obligatorios
             for campo in ["id_examen", "id_paciente"]:
                 ok, msg = campo_requerido(fila.get(campo), campo)
-                if not ok:
-                    errores.append(msg)
-
-            # Regla 2: Fecha válida y no futura
+                if not ok: errores.append(msg)
             ok, msg = es_fecha_valida(fila.get("fecha_examen", ""))
-            if not ok:
-                errores.append(msg)
-
-            # Regla 3: Resultado debe ser número positivo
+            if not ok: errores.append(msg)
             ok, msg = es_numero_positivo(fila.get("resultado", ""))
-            if not ok:
-                errores.append(msg)
+            if not ok: errores.append(msg)
 
             if errores:
-                rechazados += 1
-                motivo = " | ".join(errores)
-                log.append(f"  ❌ Rechazado {fila.get('id_examen','?')}: {motivo}")
+                fila["motivo_rechazo"] = " | ".join(errores)
+                rechazados.append(fila)
+                log.append(f"  ❌ Rechazado {fila.get('id_examen','?')}: {fila['motivo_rechazo']}")
             else:
-                validos += 1
+                validos.append(fila)
 
-    total = validos + rechazados
-    print(f"  📥 Total revisados : {total}")
-    print(f"  ✅ Válidos         : {validos}")
-    print(f"  ❌ Rechazados      : {rechazados}")
+    # Guardar válidos
+    with open(sal_val, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=campos)
+        writer.writeheader(); writer.writerows(validos)
 
-    log.append(f"  Total revisados : {total}")
-    log.append(f"  Válidos         : {validos}")
-    log.append(f"  Rechazados      : {rechazados}")
+    # Guardar rechazados
+    if rechazados:
+        with open(sal_rech, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=list(campos) + ["motivo_rechazo"])
+            writer.writeheader(); writer.writerows(rechazados)
 
-    return total, validos, rechazados
+    _imprimir_stats("LABORATORIO", len(validos), len(rechazados), log)
+    return len(validos) + len(rechazados), len(validos), len(rechazados)
 
 
-def validar_urgencias(log):
-    """
-    Valida cada registro del archivo urgencias.json.
-    """
-    entrada  = buscar_ruta_entrada("urgencias.json", log)
+def validar_urgencias(log: list):
+    entrada  = os.path.join(CARPETA_CLEAN, "urgencias.json")
+    sal_val  = os.path.join(CARPETA_VALIDADOS,  "urgencias_valido.json")
+    sal_rech = os.path.join(CARPETA_RECHAZADOS, "urgencias_rechazado.json")
 
     print("\n🚑 Validando: URGENCIAS")
     log.append("\n--- URGENCIAS ---")
 
-    if not entrada:
-        msg = f"  ❌ Archivo no encontrado ni en data/clean ni en limpieza: urgencias.json"
+    if not os.path.exists(entrada):
+        msg = f"  ❌ Archivo no encontrado: {entrada}"
         print(msg); log.append(msg)
         return 0, 0, 0
 
     if os.path.getsize(entrada) == 0:
-        msg = f"  ⚠️  JSON vacío en {entrada}: no hay registros para validar"
+        msg = "  ⚠️  JSON vacío: no hay registros para validar"
         print(msg); log.append(msg)
         return 0, 0, 0
 
-    try:
-        with open(entrada, encoding="utf-8") as f:
-            datos = json.load(f)
-    except json.JSONDecodeError as e:
-        msg = f"  ❌ JSON inválido en {entrada}: {e.msg}"
-        print(msg); log.append(msg)
-        return 0, 0, 0
+    with open(entrada, encoding="utf-8") as f:
+        datos = json.load(f)
 
-    validos    = 0
-    rechazados = 0
+    validos    = []
+    rechazados = []
 
     for reg in datos:
         errores = []
-
-        # Regla 1: Campos obligatorios
         for campo in ["id_atencion", "id_paciente"]:
             ok, msg = campo_requerido(reg.get(campo), campo)
-            if not ok:
-                errores.append(msg)
-
-        # Regla 2: Fecha válida y no futura
+            if not ok: errores.append(msg)
         ok, msg = es_fecha_valida(reg.get("fecha_ingreso", ""))
-        if not ok:
-            errores.append(msg)
-
-        # Regla 3: Estado debe ser un valor permitido
+        if not ok: errores.append(msg)
         estado = str(reg.get("estado", "")).strip().lower()
         if estado not in ESTADOS_URGENCIA_VALIDOS:
-            errores.append(f"Estado inválido: '{estado}' (permitidos: {', '.join(ESTADOS_URGENCIA_VALIDOS)})")
+            errores.append(f"Estado inválido: '{estado}' (permitidos: {', '.join(sorted(ESTADOS_URGENCIA_VALIDOS))})")
 
         if errores:
-            rechazados += 1
-            motivo = " | ".join(errores)
-            log.append(f"  ❌ Rechazado {reg.get('id_atencion','?')}: {motivo}")
+            reg["motivo_rechazo"] = " | ".join(errores)
+            rechazados.append(reg)
+            log.append(f"  ❌ Rechazado {reg.get('id_atencion','?')}: {reg['motivo_rechazo']}")
         else:
-            validos += 1
+            validos.append(reg)
 
-    total = validos + rechazados
-    print(f"  📥 Total revisados : {total}")
-    print(f"  ✅ Válidos         : {validos}")
-    print(f"  ❌ Rechazados      : {rechazados}")
+    with open(sal_val,  "w", encoding="utf-8") as f:
+        json.dump(validos, f, ensure_ascii=False, indent=2)
+    with open(sal_rech, "w", encoding="utf-8") as f:
+        json.dump(rechazados, f, ensure_ascii=False, indent=2)
 
-    log.append(f"  Total revisados : {total}")
-    log.append(f"  Válidos         : {validos}")
-    log.append(f"  Rechazados      : {rechazados}")
-
-    return total, validos, rechazados
+    _imprimir_stats("URGENCIAS", len(validos), len(rechazados), log)
+    return len(validos) + len(rechazados), len(validos), len(rechazados)
 
 
-def validar_farmacia(log):
-    """
-    Valida cada registro del archivo farmacia.xml.
-    """
-    entrada  = buscar_ruta_entrada("farmacia.xml", log)
+def validar_farmacia(log: list):
+    entrada  = os.path.join(CARPETA_CLEAN, "farmacia.xml")
+    sal_val  = os.path.join(CARPETA_VALIDADOS,  "farmacia_valido.xml")
+    sal_rech = os.path.join(CARPETA_RECHAZADOS, "farmacia_rechazado.csv")
 
     print("\n💊 Validando: FARMACIA")
     log.append("\n--- FARMACIA ---")
 
-    if not entrada:
-        msg = f"  ❌ Archivo no encontrado ni en data/clean ni en limpieza: farmacia.xml"
+    if not os.path.exists(entrada):
+        msg = f"  ❌ Archivo no encontrado: {entrada}"
         print(msg); log.append(msg)
         return 0, 0, 0
 
     if os.path.getsize(entrada) == 0:
-        msg = f"  ⚠️  XML vacío en {entrada}: no hay registros para validar"
+        msg = "  ⚠️  XML vacío: no hay registros para validar"
         print(msg); log.append(msg)
         return 0, 0, 0
 
     try:
         arbol = ET.parse(entrada)
     except ET.ParseError as e:
-        msg = f"  ❌ XML inválido en {entrada}: {e}"
+        msg = f"  ❌ XML inválido: {e}"
         print(msg); log.append(msg)
         return 0, 0, 0
 
     raiz       = arbol.getroot()
-    todos      = list(raiz)
-    validos    = 0
-    rechazados = 0
+    validos    = []
+    rechazados = []
 
-    for despacho in todos:
-        errores    = []
-        id_d = despacho.findtext("id_despacho", "").strip()
-        id_p = despacho.findtext("id_paciente", "").strip()
+    for despacho in raiz:
+        errores = []
+        id_d = (despacho.findtext("id_despacho") or "").strip()
+        id_p = (despacho.findtext("id_paciente") or "").strip()
 
-        # Regla 1: Campos obligatorios
-        ok, msg = campo_requerido(id_d, "id_despacho")
-        if not ok: errores.append(msg)
-        ok, msg = campo_requerido(id_p, "id_paciente")
-        if not ok: errores.append(msg)
-
-        # Regla 2: Fecha válida y no futura
-        ok, msg = es_fecha_valida(despacho.findtext("fecha_despacho", ""))
-        if not ok: errores.append(msg)
-
-        # Regla 3: Cantidad mayor a 0
-        ok, msg = es_numero_positivo(despacho.findtext("cantidad", "0"))
-        if not ok: errores.append(msg)
-
-        # Regla 4: Medicamento no vacío
-        ok, msg = campo_requerido(despacho.findtext("medicamento", ""), "medicamento")
-        if not ok: errores.append(msg)
+        ok, msg = campo_requerido(id_d, "id_despacho");  not ok and errores.append(msg)
+        ok, msg = campo_requerido(id_p, "id_paciente");  not ok and errores.append(msg)
+        ok, msg = es_fecha_valida(despacho.findtext("fecha_despacho") or ""); not ok and errores.append(msg)
+        ok, msg = es_numero_positivo(despacho.findtext("cantidad") or "0");   not ok and errores.append(msg)
+        ok, msg = campo_requerido(despacho.findtext("medicamento"), "medicamento"); not ok and errores.append(msg)
 
         if errores:
-            rechazados += 1
-            motivo = " | ".join(errores)
-            log.append(f"  ❌ Rechazado despacho {id_d}: {motivo}")
+            rechazados.append({
+                "id_despacho"   : id_d,
+                "id_paciente"   : id_p,
+                "medicamento"   : (despacho.findtext("medicamento") or "").strip(),
+                "motivo_rechazo": " | ".join(errores),
+            })
+            log.append(f"  ❌ Rechazado despacho {id_d}: {' | '.join(errores)}")
         else:
-            validos += 1
+            validos.append(despacho)
 
+    # Guardar XML válidos
+    raiz_val = ET.Element(raiz.tag)
+    for d in validos:
+        raiz_val.append(d)
+    ET.ElementTree(raiz_val).write(sal_val, encoding="unicode", xml_declaration=True)
+
+    # Guardar rechazados CSV
+    if rechazados:
+        with open(sal_rech, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=list(rechazados[0].keys()))
+            writer.writeheader(); writer.writerows(rechazados)
+
+    _imprimir_stats("FARMACIA", len(validos), len(rechazados), log)
+    return len(validos) + len(rechazados), len(validos), len(rechazados)
+
+
+def _imprimir_stats(area: str, validos: int, rechazados: int, log: list) -> None:
     total = validos + rechazados
     print(f"  📥 Total revisados : {total}")
     print(f"  ✅ Válidos         : {validos}")
     print(f"  ❌ Rechazados      : {rechazados}")
-
-    log.append(f"  Total revisados : {total}")
-    log.append(f"  Válidos         : {validos}")
-    log.append(f"  Rechazados      : {rechazados}")
-
-    return total, validos, rechazados
+    log += [f"  Total revisados : {total}",
+            f"  Válidos         : {validos}",
+            f"  Rechazados      : {rechazados}"]
 
 
 # -------------------------------------------------------
 # FUNCIÓN PRINCIPAL
 # -------------------------------------------------------
 
-def ejecutar_validacion():
+def ejecutar_validacion() -> None:
     crear_carpetas()
 
     log    = []
     inicio = datetime.now()
     sep    = "=" * 55
 
-    log.append(sep)
-    log.append("  VALIDACIÓN DE DATOS - Clínica MediSalud S.A.")
-    log.append(sep)
-    log.append(f"  Inicio: {inicio.strftime('%Y-%m-%d %H:%M:%S')}")
-    log.append(f"  Fecha de referencia (hoy): {HOY}")
-    log.append(sep)
+    log += [sep, "  VALIDACIÓN DE DATOS - Clínica MediSalud S.A.", sep,
+            f"  Inicio: {inicio.strftime('%Y-%m-%d %H:%M:%S')}",
+            f"  Fecha de referencia (hoy): {HOY}", sep]
 
-    print("\n" + sep)
-    print("  ETAPA 3: VALIDACIÓN DE DATOS")
-    print("  Clínica MediSalud S.A.")
-    print(sep)
-    print(f"  ▶ Inicio: {inicio.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(sep)
+    print(f"\n{sep}\n  ETAPA 3: VALIDACIÓN DE DATOS\n  Clínica MediSalud S.A.\n{sep}")
+    print(f"  ▶ Inicio: {inicio.strftime('%Y-%m-%d %H:%M:%S')}\n{sep}")
 
-    total_rev  = 0
-    total_val  = 0
-    total_rech = 0
-
+    total_rev = total_val = total_rech = 0
     for fn in [validar_laboratorio, validar_urgencias, validar_farmacia]:
         rev, val, rech = fn(log)
         total_rev  += rev
@@ -343,30 +290,22 @@ def ejecutar_validacion():
         total_rech += rech
 
     fin      = datetime.now()
-    duracion = (fin - inicio).seconds
+    duracion = (fin - inicio).total_seconds()
 
-    print("\n" + sep)
-    print("  RESUMEN DE VALIDACIÓN")
-    print(sep)
-    print(f"  📥 Total revisados  : {total_rev}")
-    print(f"  ✅ Total válidos    : {total_val}")
-    print(f"  ❌ Total rechazados : {total_rech}")
-    print(f"  ⏱  Duración         : {duracion} segundos")
-    print(f"  🏁 Fin              : {fin.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(sep + "\n")
+    resumen = [
+        f"\n{sep}", "  RESUMEN DE VALIDACIÓN", sep,
+        f"  📥 Total revisados  : {total_rev}",
+        f"  ✅ Total válidos    : {total_val}",
+        f"  ❌ Total rechazados : {total_rech}",
+        f"  ⏱  Duración         : {duracion:.2f} segundos",
+        f"  🏁 Fin              : {fin.strftime('%Y-%m-%d %H:%M:%S')}",
+        sep,
+    ]
+    for linea in resumen:
+        print(linea)
+    log.extend(resumen)
 
-    log.append("\n" + sep)
-    log.append("  RESUMEN")
-    log.append(sep)
-    log.append(f"  Total revisados  : {total_rev}")
-    log.append(f"  Total válidos    : {total_val}")
-    log.append(f"  Total rechazados : {total_rech}")
-    log.append(f"  Duración         : {duracion} segundos")
-    log.append(f"  Fin              : {fin.strftime('%Y-%m-%d %H:%M:%S')}")
-    log.append(sep)
-
-    nombre_log = f"validacion_{inicio.strftime('%Y%m%d_%H%M%S')}.log"
-    escribir_log(log, nombre_log)
+    escribir_log(log, f"validacion_{inicio.strftime('%Y%m%d_%H%M%S')}.log")
 
 
 # -------------------------------------------------------

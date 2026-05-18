@@ -1,50 +1,102 @@
+"""
+================================================================
+  LIMPIEZA_URGENCIA.PY - Clínica MediSalud S.A.
+================================================================
+Limpieza real del archivo urgencias.json:
+  - Capitaliza nombres y apellidos
+  - Estandariza fechas a formato YYYY-MM-DD
+  - Corrige camas con valor negativo → None
+  - Rellena médico vacío → "Sin asignar"
+  - Elimina registros duplicados
+================================================================
+"""
+
 import json
 import os
+from datetime import datetime
+
+from config import FORMATOS_FECHA
 
 
-def limpiar_urgencias(ruta_entrada: str, ruta_salida: str) -> None:
-    """Limpieza simple para urgencias.json.
+def normalizar_fecha(fecha_str: str) -> str:
+    """Convierte una fecha al formato YYYY-MM-DD o retorna cadena vacía."""
+    fecha_str = (fecha_str or "").strip()
+    for fmt in FORMATOS_FECHA:
+        try:
+            return datetime.strptime(fecha_str, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return ""
 
-    - Si la estructura es lista: normaliza textos en cada dict (strip + colapsar espacios)
-    - Si la estructura es dict: aplica lo mismo a cada lista/elemento dentro de sus valores.
 
-    Si el archivo está vacío, crea el destino vacío.
+def capitalizar(texto: str) -> str:
+    """Capitaliza un texto."""
+    return texto.strip().capitalize() if texto and texto.strip() else ""
+
+
+def limpiar_urgencias(ruta_entrada: str, ruta_salida: str) -> dict:
+    """
+    Limpia el archivo urgencias.json y guarda el resultado en ruta_salida.
+    Retorna un dict con estadísticas del proceso.
     """
     if not os.path.exists(ruta_entrada):
-        raise FileNotFoundError(f"No existe el archivo de entrada: {ruta_entrada}")
+        raise FileNotFoundError(f"No existe el archivo: {ruta_entrada}")
 
+    os.makedirs(os.path.dirname(ruta_salida) or ".", exist_ok=True)
+
+    # Archivo vacío → crear destino vacío
     if os.path.getsize(ruta_entrada) == 0:
-        os.makedirs(os.path.dirname(ruta_salida), exist_ok=True)
         open(ruta_salida, "w", encoding="utf-8").close()
-        return
+        return {"originales": 0, "limpios": 0, "duplicados": 0, "fechas_corregidas": 0, "correcciones": []}
 
     with open(ruta_entrada, encoding="utf-8") as f:
         datos = json.load(f)
 
+    vistos            = set()
+    limpios           = []
+    duplicados        = 0
+    fechas_corregidas = 0
+    correcciones      = []
 
-    def normalizar_texto(s):
-        return " ".join(str(s).split())
+    for reg in datos:
+        # --- Capitalizar nombres y apellidos ---
+        for campo in ["nombre", "apellido"]:
+            if campo in reg:
+                reg[campo] = capitalizar(str(reg[campo]))
 
-    def normalizar_obj(obj):
-        if isinstance(obj, dict):
-            nuevo = {}
-            for k, v in obj.items():
-                if isinstance(v, str):
-                    nuevo[k] = normalizar_texto(v)
-                elif isinstance(v, (dict, list)):
-                    nuevo[k] = normalizar_obj(v)
-                else:
-                    nuevo[k] = v
-            return nuevo
-        if isinstance(obj, list):
-            return [normalizar_obj(x) for x in obj]
-        if isinstance(obj, str):
-            return normalizar_texto(obj)
-        return obj
+        # --- Normalizar fecha ---
+        original = str(reg.get("fecha_ingreso", ""))
+        nueva    = normalizar_fecha(original)
+        reg["fecha_ingreso"] = nueva
+        if nueva and nueva != original.strip():
+            fechas_corregidas += 1
 
-    datos_limpios = normalizar_obj(datos)
+        # --- Corregir cama negativa ---
+        cama = reg.get("cama_asignada")
+        if isinstance(cama, (int, float)) and cama < 0:
+            correcciones.append(f"Cama negativa {cama} → None en atención {reg.get('id_atencion','?')}")
+            reg["cama_asignada"] = None
 
-    os.makedirs(os.path.dirname(ruta_salida), exist_ok=True)
+        # --- Rellenar médico vacío ---
+        if not str(reg.get("medico", "")).strip():
+            correcciones.append(f"Médico vacío → 'Sin asignar' en atención {reg.get('id_atencion','?')}")
+            reg["medico"] = "Sin asignar"
+
+        # --- Eliminar duplicados ---
+        clave = (reg.get("id_atencion", ""), reg.get("id_paciente", ""))
+        if clave in vistos:
+            duplicados += 1
+            continue
+        vistos.add(clave)
+        limpios.append(reg)
+
     with open(ruta_salida, "w", encoding="utf-8") as f:
-        json.dump(datos_limpios, f, ensure_ascii=False, indent=2)
+        json.dump(limpios, f, ensure_ascii=False, indent=2)
 
+    return {
+        "originales"       : len(datos),
+        "limpios"          : len(limpios),
+        "duplicados"       : duplicados,
+        "fechas_corregidas": fechas_corregidas,
+        "correcciones"     : correcciones,
+    }
