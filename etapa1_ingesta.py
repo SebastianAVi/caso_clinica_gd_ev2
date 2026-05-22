@@ -1,60 +1,31 @@
-"""
-================================================================
-  ETAPA 1: INGESTA DE DATOS - Clínica MediSalud S.A.
-================================================================
-Lee los archivos de origen (CSV, JSON, XML) y los copia a
-data/raw/, registrando un log detallado de cada operación.
-================================================================
-"""
-
 import csv
 import json
 import os
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
-from config import (
-    ARCHIVOS_ESPERADOS,
-    CARPETA_CLEAN,
-    CARPETA_LOGS,
-    CARPETA_RAW,
-    CARPETA_RAW_ORIGEN,
-)
+from config import ARCHIVOS_ESPERADOS, CARPETA_LOGS, CARPETA_RAW, CARPETA_RAW_ORIGEN
 
-# -------------------------------------------------------
-# FUNCIONES AUXILIARES
-# -------------------------------------------------------
 
-def resolver_carpeta_origen() -> str:
-    """
-    Devuelve la carpeta de origen de los archivos.
-    Prefiere data/raw_origen; si no existe, usa data/raw como fallback.
-    """
+def resolver_carpeta_origen():
     if os.path.isdir(CARPETA_RAW_ORIGEN):
         return CARPETA_RAW_ORIGEN
     return CARPETA_RAW
 
 
-def crear_carpetas() -> None:
-    """Crea las carpetas necesarias si no existen."""
+def crear_carpetas():
     for carpeta in [CARPETA_RAW, CARPETA_LOGS]:
         os.makedirs(carpeta, exist_ok=True)
 
 
-def contar_registros(ruta_archivo: str) -> int:
-    """
-    Cuenta los registros de un archivo según su extensión.
-    Retorna el número de registros o -1 si hubo error.
-    """
-    extension = ruta_archivo.rsplit(".", 1)[-1].lower()
+def contar_registros(ruta):
+    ext = ruta.rsplit(".", 1)[-1].lower()
     try:
-        if extension == "csv":
-            with open(ruta_archivo, encoding="utf-8") as f:
-                filas = list(csv.reader(f))
-            return max(0, len(filas) - 1)  # descuenta encabezado
-
-        elif extension == "json":
-            with open(ruta_archivo, encoding="utf-8") as f:
+        if ext == "csv":
+            with open(ruta, encoding="utf-8") as f:
+                return max(0, len(list(csv.reader(f))) - 1)
+        elif ext == "json":
+            with open(ruta, encoding="utf-8") as f:
                 datos = json.load(f)
             if isinstance(datos, list):
                 return len(datos)
@@ -63,116 +34,95 @@ def contar_registros(ruta_archivo: str) -> int:
                     if isinstance(v, list):
                         return len(v)
             return 0
-
-        elif extension == "xml":
-            arbol = ET.parse(ruta_archivo)
-            return len(list(arbol.getroot()))
-
+        elif ext == "xml":
+            return len(list(ET.parse(ruta).getroot()))
     except Exception as e:
-        print(f"  ⚠️  Error al contar registros en '{ruta_archivo}': {e}")
+        print(f"  Error al contar registros en {ruta}: {e}")
     return -1
 
 
-def escribir_log(log_entries: list, nombre_log: str) -> None:
-    """Guarda las entradas del log en un archivo de texto."""
-    ruta_log = os.path.join(CARPETA_LOGS, nombre_log)
-    with open(ruta_log, "w", encoding="utf-8") as f:
-        f.write("\n".join(log_entries) + "\n")
-    print(f"\n📋 Log guardado en: {ruta_log}")
-
-
-def copiar_archivo(ruta_origen: str, ruta_destino: str) -> None:
-    """Copia un archivo en bloques de 1 MB."""
-    with open(ruta_origen, "rb") as fsrc, open(ruta_destino, "wb") as fdst:
+def copiar_archivo(origen, destino):
+    with open(origen, "rb") as src, open(destino, "wb") as dst:
         while True:
-            chunk = fsrc.read(1024 * 1024)
+            chunk = src.read(1024 * 1024)
             if not chunk:
                 break
-            fdst.write(chunk)
+            dst.write(chunk)
 
 
-# -------------------------------------------------------
-# FUNCIÓN PRINCIPAL
-# -------------------------------------------------------
+def escribir_log(entradas, nombre):
+    ruta = os.path.join(CARPETA_LOGS, nombre)
+    with open(ruta, "w", encoding="utf-8") as f:
+        f.write("\n".join(entradas) + "\n")
+    print(f"Log guardado en: {ruta}")
 
-def ejecutar_ingesta() -> None:
+
+def ejecutar_ingesta():
     crear_carpetas()
-
     log    = []
     inicio = datetime.now()
     sep    = "=" * 55
 
-    log += [sep, "  INGESTA DE DATOS - Clínica MediSalud S.A.", sep,
-            f"  Inicio: {inicio.strftime('%Y-%m-%d %H:%M:%S')}", sep]
+    log += [sep, "INGESTA DE DATOS - Clinica MediSalud S.A.", sep,
+            f"Inicio: {inicio.strftime('%Y-%m-%d %H:%M:%S')}", sep]
+    print(f"\n{sep}\nETAPA 1: INGESTA DE DATOS\nClinica MediSalud S.A.\n{sep}")
+    print(f"Inicio: {inicio.strftime('%Y-%m-%d %H:%M:%S')}\n{sep}")
 
-    print(f"\n{sep}\n  ETAPA 1: INGESTA DE DATOS\n  Clínica MediSalud S.A.\n{sep}")
-    print(f"  ▶ Inicio: {inicio.strftime('%Y-%m-%d %H:%M:%S')}\n{sep}")
+    total = ok = errores = 0
 
-    total_registros = archivos_ok = archivos_error = 0
-
-    for area, nombre_archivo in ARCHIVOS_ESPERADOS.items():
-        print(f"\n📂 Procesando área: {area.upper()}")
-        log.append(f"\nÁrea: {area.upper()}")
+    for area, archivo in ARCHIVOS_ESPERADOS.items():
+        print(f"\nProcesando area: {area.upper()}")
+        log.append(f"\nArea: {area.upper()}")
 
         origen  = resolver_carpeta_origen()
-        ruta_or = os.path.join(origen, nombre_archivo)
-        ruta_ds = os.path.join(CARPETA_RAW, nombre_archivo)
+        ruta_or = os.path.join(origen, archivo)
+        ruta_ds = os.path.join(CARPETA_RAW, archivo)
 
-        # Verificar existencia
         if not os.path.exists(ruta_or):
-            print(f"  ❌ Archivo no encontrado: {ruta_or}")
-            log.append(f"  ERROR: Archivo no encontrado en {ruta_or}")
-            archivos_error += 1
+            print(f"  ERROR: Archivo no encontrado: {ruta_or}")
+            log.append(f"  ERROR: No encontrado: {ruta_or}")
+            errores += 1
             continue
 
-        # Copiar archivo
         try:
             if os.path.abspath(ruta_or) == os.path.abspath(ruta_ds):
-                print(f"  ℹ️  Origen y destino iguales; se omite copia: {nombre_archivo}")
-                log.append(f"  Archivo: {nombre_archivo} → (sin copia, origen==destino)")
+                print(f"  Origen y destino iguales, sin copia: {archivo}")
+                log.append(f"  {archivo} -> sin copia (origen==destino)")
             else:
                 copiar_archivo(ruta_or, ruta_ds)
-                print(f"  ✅ Archivo copiado: {nombre_archivo}")
-                log.append(f"  Archivo: {nombre_archivo} → copiado correctamente")
+                print(f"  Archivo copiado: {archivo}")
+                log.append(f"  {archivo} -> copiado correctamente")
         except Exception as e:
-            print(f"  ❌ Error al copiar '{nombre_archivo}': {e}")
+            print(f"  ERROR al copiar {archivo}: {e}")
             log.append(f"  ERROR al copiar: {e}")
-            archivos_error += 1
+            errores += 1
             continue
 
-        # Contar registros
         n = contar_registros(ruta_ds)
         if n >= 0:
-            print(f"  📊 Registros encontrados: {n}")
-            log.append(f"  Registros encontrados: {n}")
-            total_registros += n
+            print(f"  Registros encontrados: {n}")
+            log.append(f"  Registros: {n}")
+            total += n
         else:
             log.append("  Registros: no se pudo contar")
+        ok += 1
 
-        archivos_ok += 1
-
-    # Resumen
     fin      = datetime.now()
     duracion = (fin - inicio).total_seconds()
-
-    resumen = [
-        f"\n{sep}", "  RESUMEN DE INGESTA", sep,
-        f"  ✅ Archivos procesados : {archivos_ok}",
-        f"  ❌ Archivos con error  : {archivos_error}",
-        f"  📊 Total de registros  : {total_registros}",
-        f"  ⏱  Duración            : {duracion:.2f} segundos",
-        f"  🏁 Fin                 : {fin.strftime('%Y-%m-%d %H:%M:%S')}",
+    resumen  = [
+        f"\n{sep}", "RESUMEN DE INGESTA", sep,
+        f"  Archivos procesados : {ok}",
+        f"  Archivos con error  : {errores}",
+        f"  Total de registros  : {total}",
+        f"  Duracion            : {duracion:.2f} segundos",
+        f"  Fin                 : {fin.strftime('%Y-%m-%d %H:%M:%S')}",
         sep,
     ]
     for linea in resumen:
         print(linea)
     log.extend(resumen)
-
     escribir_log(log, f"ingesta_{inicio.strftime('%Y%m%d_%H%M%S')}.log")
 
 
-# -------------------------------------------------------
-# PUNTO DE ENTRADA
-# -------------------------------------------------------
 if __name__ == "__main__":
     ejecutar_ingesta()
