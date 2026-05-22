@@ -1,139 +1,91 @@
-# 🏥 Clínica MediSalud S.A. - Pipeline ETL de Datos
+# Pipeline de Datos - Clinica MediSalud S.A.
 
-**Evaluación 2 - Gestión de Datos para Inteligencia Artificial**
+Evaluacion 2 - Gestion de Datos para la Inteligencia Artificial  
+Seccion 901D | Docente: Cristian Gandolfi  
+Integrantes: Sebastian Aviles, Santiago Vega, Vicente Vergara
 
-Pipeline completo de datos (ETL) que implementa ingesta, limpieza, validación y carga de datos desde fuentes heterogéneas (CSV, JSON, XML) a una base de datos, aplicando buenas prácticas de **Data Engineering** con arquitectura modular y escalable.
+## Descripcion
 
----
+Pipeline ETL automatizado que ingesta, limpia, valida y carga datos clinicos provenientes de tres fuentes heterogeneas hacia una base de datos centralizada, permitiendo analisis operacional de atenciones, examenes y despachos de farmacia.
 
-## 📚 Estructura del Proyecto
+## Estructura del proyecto
 
 ```
 caso_clinica_gd_ev2/
-│
-├── clinica_etl/                 # 📦 Paquete modular
-│   ├── __init__.py
-│   ├── config.py                # Configuración centralizada
-│   ├── ingesta/                 # Etapa 1: Ingesta
-│   ├── limpieza/                # Etapa 2: Limpieza
-│   ├── validacion/              # Etapa 3: Validación
-│   ├── carga/                   # Etapa 4: Carga
-│   └── utils/                   # Utilidades compartidas
-│
-├── scripts/                     # Scripts adicionales
-│   └── generar_raw_data.py
-│
-├── data/                        # 📁 Datos
-│   ├── raw/                     # Datos sin procesar
-│   ├── clean/                   # Datos limpios
-│   ├── validados/               # Datos validados
-│   ├── rechazados/              # Registros rechazados
-│   └── clinica.db               # Base de datos
-│
-├── logs/                        # 📋 Logs de ejecución
-│
-├── etapa1_ingesta.py            # 🚀 Etapa 1
-├── limpieza.py                  # 🚀 Etapa 2
-├── etapa3_validacion.py         # 🚀 Etapa 3
-├── etapa4_carga_bd.py           # 🚀 Etapa 4
-│
-├── config.py                    # Configuración compartida
-├── requirements.txt             # Dependencias
-├── .env.example                 # Variables de entorno
-├── .gitignore                   # Git ignore
-└── README.md                    # Este archivo
+├── config.py                  # Constantes y configuracion centralizada
+├── etapa1_ingesta.py          # Etapa 1: copia archivos a data/raw/ y genera log
+├── limpieza.py                # Etapa 2: orquestador de limpieza
+├── limpieza_laboratorio.py    # Limpieza especifica de laboratorio.csv
+├── limpieza_urgencia.py       # Limpieza especifica de urgencias.json
+├── limpieza_farmacia.py       # Limpieza especifica de farmacia.xml
+├── etapa3_validacion.py       # Etapa 3: validacion y separacion validos/rechazados
+├── etapa4_carga_bd.py         # Etapa 4: carga a SQLite (o PostgreSQL)
+├── analisis_operacional.py    # Consultas y metricas operacionales desde la BD
+├── requirements.txt
+├── scripts/
+│   └── generar_raw_data.py    # Genera datos de ejemplo con errores intencionales
+└── data/
+    └── raw/                   # Archivos fuente (CSV, JSON, XML)
 ```
 
----
+## Fuentes de datos
 
-## 🎯 Etapas del Pipeline
+| Area        | Formato | Archivo              |
+|-------------|---------|----------------------|
+| Laboratorio | CSV     | data/raw/laboratorio.csv |
+| Urgencias   | JSON    | data/raw/urgencias.json  |
+| Farmacia    | XML     | data/raw/farmacia.xml    |
 
-| # | Etapa | Descripción | Estado |
-|---|-------|-----------|--------|
-| 1 | 📥 **Ingesta** | Lee archivos de origen (CSV, JSON, XML) y copia a `data/raw/` | ✅ |
-| 2 | 🧹 **Limpieza** | Transforma y normaliza datos | ✅ |
-| 3 | ✔️ **Validación** | Valida contra reglas de negocio | ✅ |
-| 4 | 💾 **Carga** | Inserta datos en BD (SQLite/PostgreSQL) | ✅ |
+## Etapas del pipeline
 
----
+| Etapa | Script               | Descripcion                                      | Estado      |
+|-------|----------------------|--------------------------------------------------|-------------|
+| 1     | etapa1_ingesta.py    | Copia archivos a data/raw/ y registra log        | Completa    |
+| 2     | limpieza.py          | Limpia y transforma datos hacia data/clean/      | Completa    |
+| 3     | etapa3_validacion.py | Valida reglas de negocio, separa validos/rechazados | Completa |
+| 4     | etapa4_carga_bd.py   | Carga registros validos a la base de datos       | Completa    |
+| +     | analisis_operacional.py | Metricas de uso de camas, examenes y farmacia | Completa    |
 
-## 🚀 Inicio Rápido
+## Como ejecutar
 
-### 1. Instalación
+### 1. Generar datos de ejemplo (con errores intencionales para demostrar el pipeline)
 
 ```bash
-git clone https://github.com/SebastianAVi/caso_clinica_gd_ev2.git
-cd caso_clinica_gd_ev2
-
-# Entorno virtual (recomendado)
-python -m venv venv
-source venv/Scripts/activate  # Windows
-
-# Instalar
-pip install -r requirements.txt
+python scripts/generar_raw_data.py
 ```
 
-### 2. Ejecutar
+### 2. Ejecutar el pipeline completo en orden
 
-**Opción A: Scripts principales (recomendado)**
 ```bash
-# Etapa 1: Ingesta
 python etapa1_ingesta.py
-
-# Etapa 2: Limpieza
 python limpieza.py
-
-# Etapa 3: Validación
 python etapa3_validacion.py
-
-# Etapa 4: Carga
 python etapa4_carga_bd.py
+python analisis_operacional.py
 ```
 
-**Opción B: Importar módulos del paquete**
-```python
-from clinica_etl.ingesta import ejecutar_ingesta
-from clinica_etl.limpieza import ejecutar_limpieza
+## Que hace cada etapa
 
-ejecutar_ingesta()
-ejecutar_limpieza()
+**Etapa 1 - Ingesta:** Lee los archivos desde `data/raw/` (o `data/raw_origen/` si existe), los copia al destino y genera un log con cantidad de registros por fuente.
+
+**Etapa 2 - Limpieza:** Capitaliza nombres, estandariza fechas a formato YYYY-MM-DD, elimina duplicados, corrige camas negativas y campos vacios. Guarda resultados en `data/clean/`.
+
+**Etapa 3 - Validacion:** Aplica reglas de negocio: campos obligatorios, fechas no futuras, resultado numerico positivo, estado de urgencia valido, cantidad mayor a 0. Separa registros en `data/validados/` y `data/rechazados/` con motivo de rechazo.
+
+**Etapa 4 - Carga:** Inserta los registros validados en SQLite (por defecto) o PostgreSQL. Evita duplicados y genera log con resumen y consulta de ejemplo.
+
+**Analisis operacional:** Consultas sobre uso de camas por estado, examenes de laboratorio (promedio, min, max), medicamentos mas despachados y actividad por mes.
+
+## Configuracion de base de datos
+
+Por defecto usa SQLite (`data/clinica.db`). Para usar PostgreSQL:
+
+```bash
+DB_ENGINE=postgresql DB_NAME=clinica DB_USER=postgres DB_PASSWORD=postgres python etapa4_carga_bd.py
 ```
 
----
+## Tecnologias
 
-## 🛠 Tecnologías
-
-- Python 3.8+
-- pandas, numpy
+- Python 3
 - SQLite / PostgreSQL
-- XML, JSON, CSV
-
----
-
-## 📊 Datos de Entrada
-
-Tres archivos en `data/raw/`:
-
-1. **laboratorio.csv** - Exámenes
-2. **urgencias.json** - Urgencias
-3. **farmacia.xml** - Medicamentos
-
----
-
-## 📝 Logs
-
-Guardados en `logs/` con timestamp (ej: `ingesta_20260518_131557.log`)
-
----
-
-## 💡 Ejemplo de Uso
-
-```python
-from clinica_etl.ingesta import ejecutar_ingesta
-from clinica_etl.limpieza import ejecutar_limpieza
-
-ejecutar_ingesta()
-ejecutar_limpieza()
-```
-
-Ver [ESTRUCTURA_OPTIMIZADA.md](ESTRUCTURA_OPTIMIZADA.md) para más detalles.
+- Modulos estandar: csv, json, xml, sqlite3, datetime, os
