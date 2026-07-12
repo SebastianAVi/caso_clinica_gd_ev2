@@ -1,0 +1,9 @@
+data/clean/
+data/validados/
+data/rechazados/
+data/clinica.db
+logs/
+__pycache__/
+*.pyc
+*.zip
+.env
