@@ -15,13 +15,13 @@ Este repositorio contiene **solo codigo**. Los datos (crudos, limpios y la base 
 ```
 caso_clinica_gd_ev2/
 ├── config.py                  # Constantes y configuracion centralizada
-├── etapa1_ingesta.py          # Etapa 1: copia archivos a data/raw/ y genera log
-├── limpieza.py                # Etapa 2: orquestador de limpieza
+├── 01_ingesta.py              # Etapa 1: copia archivos a data/raw/ y genera log
+├── 02_limpieza.py             # Etapa 2: orquestador de limpieza
 ├── limpieza_laboratorio.py    # Limpieza especifica de laboratorio.csv
 ├── limpieza_urgencia.py       # Limpieza especifica de urgencias.json
 ├── limpieza_farmacia.py       # Limpieza especifica de farmacia.xml
-├── etapa3_validacion.py       # Etapa 3: validacion y separacion validos/rechazados
-├── etapa4_carga_bd.py         # Etapa 4: carga a SQLite (o PostgreSQL)
+├── 03_validacion.py           # Etapa 3: validacion y separacion validos/rechazados
+├── 04_carga_bd.py             # Etapa 4: carga a SQLite (o PostgreSQL)
 ├── analisis_operacional.py    # Consultas y metricas operacionales desde la BD
 ├── requirements.txt
 ├── .gitignore                 # Excluye toda la carpeta data/ y logs/ generados
@@ -30,6 +30,8 @@ caso_clinica_gd_ev2/
 ```
 
 > Nota: la carpeta `data/` no existe en el repositorio. Se crea automaticamente la primera vez que se ejecuta un script.
+> Nota: los scripts principales de ETL se renombraron con prefijos numéricos para que el flujo sea más claro: `01_ingesta.py`, `02_limpieza.py`, `03_validacion.py`, `04_carga_bd.py`.
+> Repositorio remoto: https://github.com/SebastianAVi/caso_clinica_gd_ev2.git
 
 ## Fuentes de datos
 
@@ -43,14 +45,14 @@ Cada archivo se genera con una proporcion realista de errores intencionales (~2%
 
 ## Etapas del pipeline
 
-| Etapa | Script                   | Descripcion                                         | Estado   |
-|-------|--------------------------|------------------------------------------------------|----------|
-| 0     | scripts/generar_raw_data.py | Genera los archivos fuente en data/raw/          | Completa |
-| 1     | etapa1_ingesta.py         | Copia archivos a data/raw/ y registra log            | Completa |
-| 2     | limpieza.py               | Limpia y transforma datos hacia data/clean/          | Completa |
-| 3     | etapa3_validacion.py      | Valida reglas de negocio, separa validos/rechazados  | Completa |
-| 4     | etapa4_carga_bd.py        | Carga registros validos a la base de datos           | Completa |
-| +     | analisis_operacional.py   | Metricas de uso de camas, examenes y farmacia        | Completa |
+| Etapa | Script                       | Descripcion                                         | Estado      |
+|-------|-----------------------------|-----------------------------------------------------|-------------|
+| 0     | scripts/generar_raw_data.py | Genera los archivos fuente en data/raw/             | Completa    |
+| 1     | 01_ingesta.py              | Copia archivos a data/raw/ y registra log           | Completa    |
+| 2     | 02_limpieza.py             | Limpia y transforma datos hacia data/clean/         | Completa    |
+| 3     | 03_validacion.py           | Valida reglas de negocio, separa validos/rechazados | Completa    |
+| 4     | 04_carga_bd.py             | Carga registros validos a la base de datos          | Completa    |
+| +     | analisis_operacional.py    | Metricas de uso de camas, examenes y farmacia       | Completa    |
 
 ## Como ejecutar (demo en vivo)
 
@@ -61,16 +63,16 @@ Ejecutar en este orden exacto. Cada comando puede mostrarse y explicarse en la p
 python scripts/generar_raw_data.py
 
 # 1. Ingesta: copia los archivos a data/raw/ y genera log
-python etapa1_ingesta.py
+python 01_ingesta.py
 
 # 2. Limpieza: corrige duplicados, fechas, nombres y campos vacios
-python limpieza.py
+python 02_limpieza.py
 
 # 3. Validacion: separa registros validos de rechazados con motivo
-python etapa3_validacion.py
+python 03_validacion.py
 
 # 4. Carga: inserta los registros validos en la base de datos SQLite
-python etapa4_carga_bd.py
+python 04_carga_bd.py
 
 # 5. Analisis: metricas operacionales desde la base de datos ya cargada
 python analisis_operacional.py
@@ -97,7 +99,7 @@ Al finalizar, revisar la carpeta `logs/` para ver la trazabilidad completa de ca
 Por defecto usa SQLite (`data/clinica.db`). Para usar PostgreSQL:
 
 ```bash
-DB_ENGINE=postgresql DB_NAME=clinica DB_USER=postgres DB_PASSWORD=postgres python etapa4_carga_bd.py
+DB_ENGINE=postgresql DB_NAME=clinica DB_USER=postgres DB_PASSWORD=postgres python 04_carga_bd.py
 ```
 
 ## Datos y archivos no versionados

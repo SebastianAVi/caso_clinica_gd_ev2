@@ -6,7 +6,7 @@ from config import DB_PATH, CARPETA_LOGS
 
 def conectar():
     if not os.path.exists(DB_PATH):
-        raise FileNotFoundError(f"Base de datos no encontrada: {DB_PATH}. Ejecute primero etapa4_carga_bd.py")
+        raise FileNotFoundError(f"Base de datos no encontrada: {DB_PATH}. Ejecute primero 04_carga_bd.py")
     return sqlite3.connect(DB_PATH)
 
 

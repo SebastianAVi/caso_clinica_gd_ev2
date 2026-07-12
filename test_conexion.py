@@ -19,7 +19,7 @@ try:
             cantidad = cursor.fetchone()[0]
             print(f"   → {nombre}: {cantidad} registros")
     else:
-        print("Base de Datos vacía — ejecuta etapa4_carga_bd.py primero")
+        print("Base de Datos vacía — ejecuta 04_carga_bd.py primero")
 
     conn.close()
 
